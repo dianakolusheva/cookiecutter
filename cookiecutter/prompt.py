@@ -249,7 +249,7 @@ def prompt_in_loop_for_config(cookiecutter_dict, env, key, raw, no_input):
                         cookiecutter_dict[key][i][question] = new_val
                 except UndefinedError as err:
                     msg = "Unable to render variable '{}'".format(question)
-                    raise UndefinedVariableInTemplate(msg, err, context)
+                    raise UndefinedVariableInTemplate(msg, err, raw)
 
         # Second pass; handle the dictionaries.
         for question, value in iteritems(raw):
@@ -267,7 +267,7 @@ def prompt_in_loop_for_config(cookiecutter_dict, env, key, raw, no_input):
                         cookiecutter_dict[key][i][question] = new_val
                 except UndefinedError as err:
                     msg = "Unable to render variable '{}'".format(question)
-                    raise UndefinedVariableInTemplate(msg, err, context)            
+                    raise UndefinedVariableInTemplate(msg, err, raw)            
 
     return cookiecutter_dict
 
@@ -314,7 +314,7 @@ def prompt_for_config(context, no_input=False):
             if isinstance(raw, dict):
                 if key.startswith(u'loop_'):
                     # We are dealing with a loop
-                    cookiecutter_dict = process_loop(
+                    cookiecutter_dict = prompt_in_loop_for_config(
                         cookiecutter_dict, env, key, raw, no_input)
                 else:
                     # We are dealing with a dict variable
