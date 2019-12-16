@@ -187,6 +187,70 @@ def prompt_choice_for_config(cookiecutter_dict, env, key, options, no_input):
     return read_user_choice(key, rendered_options)
 
 
+def prompt_in_loop_for_config(cookiecutter_dict, env, key, raw, no_input):
+    """Generate new prompts and prompt user based on previous answer.
+    """
+    # Strip the 'loop_' from the question
+    key = key[5:]
+    val = render_variable(env, raw.get('default', 1), cookiecutter_dict)
+
+    if not no_input:
+        val = read_user_variable(key, val)
+
+    cookiecutter_dict[key] = {}
+    cookiecutter_dict[key]['value'] = val
+    # val is a number of iterations
+    for i in range(int(val)):
+        cookiecutter_dict[key][i] = {}
+        for question, value in iteritems(raw):
+            # Loops can be recursive
+            if question.startswith(u'loop_'):
+                cookiecutter_dict[key][i] = prompt_in_loop_for_config(
+                    cookiecutter_dict[key][i], env, question, value, no_input
+                    )
+            elif question != 'default':
+                # Similar process to regular prompt_for_config
+                try:
+                    if isinstance(value, list):
+                        new_val = prompt_choice_for_config(
+                            cookiecutter_dict, env, question, value, no_input
+                            )
+                        cookiecutter_dict[key][i][question] = new_val
+
+                    elif not isinstance(value, dict):
+                        new_val = render_variable(env, value, cookiecutter_dict)
+                        if question.endswith(u'_iter'):
+                            new_val = '{}_{}'.format(value, i + 1)
+                            question = question[:-5]
+
+                        if not no_input:
+                            new_val = read_user_variable(
+                                '{}_{}'.format(question, i + 1), new_val)
+
+                        cookiecutter_dict[key][i][question] = new_val
+                except UndefinedError as err:
+                    msg = "Unable to render variable '{}'".format(question)
+                    raise UndefinedVariableInTemplate(msg, err, context)
+        
+        for question, value in iteritems(raw):
+            if not question.startswith(u'loop_'):
+                try:
+                    if isinstance(value, dict):
+                        new_val = render_variable(env, value, cookiecutter_dict)
+
+                        if not no_input:
+                            new_val = read_user_dict(
+                                '{}_{}'.format(question, i + 1), new_val
+                                )
+                        
+                        cookiecutter_dict[key][i][question] = new_val
+                except UndefinedError as err:
+                    msg = "Unable to render variable '{}'".format(question)
+                    raise UndefinedVariableInTemplate(msg, err, context)            
+
+    return cookiecutter_dict
+
+
 def prompt_for_config(context, no_input=False):
     """Prompt user to enter a new config.
 
@@ -225,16 +289,19 @@ def prompt_for_config(context, no_input=False):
 
     # Second pass; handle the dictionaries.
     for key, raw in iteritems(context[u'cookiecutter']):
-
         try:
             if isinstance(raw, dict):
-                # We are dealing with a dict variable
-                val = render_variable(env, raw, cookiecutter_dict)
+                if key.startswith(u'loop_'):
+                    cookiecutter_dict = process_loop(
+                        cookiecutter_dict, env, key, raw, no_input)
+                else:
+                    # We are dealing with a dict variable
+                    val = render_variable(env, raw, cookiecutter_dict)
 
-                if not no_input:
-                    val = read_user_dict(key, val)
+                    if not no_input:
+                        val = read_user_dict(key, val)
 
-                cookiecutter_dict[key] = val
+                    cookiecutter_dict[key] = val
         except UndefinedError as err:
             msg = "Unable to render variable '{}'".format(key)
             raise UndefinedVariableInTemplate(msg, err, context)
