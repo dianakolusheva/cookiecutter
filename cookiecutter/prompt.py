@@ -188,7 +188,21 @@ def prompt_choice_for_config(cookiecutter_dict, env, key, options, no_input):
 
 
 def prompt_in_loop_for_config(cookiecutter_dict, env, key, raw, no_input):
-    """Generate new prompts and prompt user based on previous answer.
+    """Generate configurable questions and prompt user based on previous 
+    user input answer.
+    Configurable questions have the following key strings:
+    loop_: indicates block of configuratable questions. 
+    default: supplies default loop iteration count.
+    _iter: indicates iteration counter as a substutition parameter.
+
+    :param dict cookiecutter_dict: The current context as it's gradually
+        being populated with variables.
+    :param Environment env: A Jinja2 Environment object.
+    :param str key: Variable of the context starting with 'loop_'.
+    :param dict raw: A dictionary of questions and default values to ask at
+        every loop iteration.
+    :param no_input: Prompt the user at command line for manual configuration?
+    :return: Updated context dictionary.
     """
     # Strip the 'loop_' from the question
     key = key[5:]
@@ -203,7 +217,8 @@ def prompt_in_loop_for_config(cookiecutter_dict, env, key, raw, no_input):
     for i in range(int(val)):
         cookiecutter_dict[key][i] = {}
         for question, value in iteritems(raw):
-            # Loops can be recursive
+            # Loops can be recursive if keys inside raw dictionary also start
+            # with 'loop_'
             if question.startswith(u'loop_'):
                 cookiecutter_dict[key][i] = prompt_in_loop_for_config(
                     cookiecutter_dict[key][i], env, question, value, no_input
@@ -212,13 +227,17 @@ def prompt_in_loop_for_config(cookiecutter_dict, env, key, raw, no_input):
                 # Similar process to regular prompt_for_config
                 try:
                     if isinstance(value, list):
+                        # We are dealing with a choice variable
                         new_val = prompt_choice_for_config(
                             cookiecutter_dict, env, question, value, no_input
                             )
                         cookiecutter_dict[key][i][question] = new_val
 
                     elif not isinstance(value, dict):
+                        # We are dealing with a regular variable
                         new_val = render_variable(env, value, cookiecutter_dict)
+                        # If question ends with '_iter' we want to increment
+                        # the default value
                         if question.endswith(u'_iter'):
                             new_val = '{}_{}'.format(value, i + 1)
                             question = question[:-5]
@@ -231,11 +250,13 @@ def prompt_in_loop_for_config(cookiecutter_dict, env, key, raw, no_input):
                 except UndefinedError as err:
                     msg = "Unable to render variable '{}'".format(question)
                     raise UndefinedVariableInTemplate(msg, err, context)
-        
+
+        # Second pass; handle the dictionaries.
         for question, value in iteritems(raw):
             if not question.startswith(u'loop_'):
                 try:
                     if isinstance(value, dict):
+                        # We are dealing with a dict variable
                         new_val = render_variable(env, value, cookiecutter_dict)
 
                         if not no_input:
@@ -292,6 +313,7 @@ def prompt_for_config(context, no_input=False):
         try:
             if isinstance(raw, dict):
                 if key.startswith(u'loop_'):
+                    # We are dealing with a loop
                     cookiecutter_dict = process_loop(
                         cookiecutter_dict, env, key, raw, no_input)
                 else:
