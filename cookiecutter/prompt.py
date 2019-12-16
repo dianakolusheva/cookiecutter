@@ -188,10 +188,10 @@ def prompt_choice_for_config(cookiecutter_dict, env, key, options, no_input):
 
 
 def prompt_in_loop_for_config(cookiecutter_dict, env, key, raw, no_input):
-    """Generate configurable questions and prompt user based on previous 
+    """Generate configurable questions and prompt user based on previous
     user input answer.
     Configurable questions have the following key strings:
-    loop_: indicates block of configuratable questions. 
+    loop_: indicates block of configuratable questions.
     default: supplies default loop iteration count.
     _iter: indicates iteration counter as a substutition parameter.
 
@@ -222,7 +222,7 @@ def prompt_in_loop_for_config(cookiecutter_dict, env, key, raw, no_input):
             if question.startswith(u'loop_'):
                 cookiecutter_dict[key][i] = prompt_in_loop_for_config(
                     cookiecutter_dict[key][i], env, question, value, no_input
-                    )
+                )
             elif question != 'default':
                 # Similar process to regular prompt_for_config
                 try:
@@ -230,12 +230,13 @@ def prompt_in_loop_for_config(cookiecutter_dict, env, key, raw, no_input):
                         # We are dealing with a choice variable
                         new_val = prompt_choice_for_config(
                             cookiecutter_dict, env, question, value, no_input
-                            )
+                        )
                         cookiecutter_dict[key][i][question] = new_val
 
                     elif not isinstance(value, dict):
                         # We are dealing with a regular variable
-                        new_val = render_variable(env, value, cookiecutter_dict)
+                        new_val = render_variable(
+                            env, value, cookiecutter_dict)
                         # If question ends with '_iter' we want to increment
                         # the default value
                         if question.endswith(u'_iter'):
@@ -244,7 +245,8 @@ def prompt_in_loop_for_config(cookiecutter_dict, env, key, raw, no_input):
 
                         if not no_input:
                             new_val = read_user_variable(
-                                '{}_{}'.format(question, i + 1), new_val)
+                                '{}_{}'.format(question, i + 1), new_val
+                            )
 
                         cookiecutter_dict[key][i][question] = new_val
                 except UndefinedError as err:
@@ -257,17 +259,18 @@ def prompt_in_loop_for_config(cookiecutter_dict, env, key, raw, no_input):
                 try:
                     if isinstance(value, dict):
                         # We are dealing with a dict variable
-                        new_val = render_variable(env, value, cookiecutter_dict)
+                        new_val = render_variable(
+                            env, value, cookiecutter_dict)
 
                         if not no_input:
                             new_val = read_user_dict(
                                 '{}_{}'.format(question, i + 1), new_val
-                                )
-                        
+                            )
+
                         cookiecutter_dict[key][i][question] = new_val
                 except UndefinedError as err:
                     msg = "Unable to render variable '{}'".format(question)
-                    raise UndefinedVariableInTemplate(msg, err, raw)            
+                    raise UndefinedVariableInTemplate(msg, err, raw)
 
     return cookiecutter_dict
 
